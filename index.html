@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stakeholder Map & Influence Tracker</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d29;
+    --accent: #6c8cff;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --text: #e6e8ef;
+    --text-dim: #9aa0b4;
+    --border: #2a2e3d;
+
+    /* Leverage tiers (Meadows-inspired, plain-language to the consultant) */
+    --tier1: #22d3ee; /* Day-to-day management */
+    --tier2: #60a5fa; /* Communication & feedback */
+    --tier3: #a78bfa; /* Relationships & structure */
+    --tier4: #f59e0b; /* Framing & mindset */
+
+    /* Quadrant colors */
+    --q-manage: #f87171;   /* Manage Closely */
+    --q-satisfy: #a78bfa;  /* Keep Satisfied */
+    --q-inform: #60a5fa;   /* Keep Informed */
+    --q-monitor: #6b7280;  /* Monitor */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  .subtitle { color: var(--text-dim); margin-bottom: 20px; font-size: 14px; }
+  h2 { font-size: 16px; margin-bottom: 10px; }
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 800px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  label { font-size: 13px; color: var(--text-dim); display: block; margin-bottom: 4px; }
+  input[type=text], textarea, select {
+    width: 100%;
+    background: #11141d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  input[type=text]:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+  input[type=range] { width: 100%; }
+
+  .form-row { margin-bottom: 12px; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .slider-val { font-size: 12px; color: var(--accent); float: right; }
+
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.9; }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  button.danger {
+    background: transparent;
+    border: 1px solid var(--bad);
+    color: var(--bad);
+  }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+
+  /* Grid / quadrant chart */
+  .grid-wrap { position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 520px; margin: 0 auto; }
+  svg { width: 100%; height: 100%; overflow: visible; }
+  .quadrant-label { fill: var(--text-dim); font-size: 11px; }
+  .axis-label { fill: var(--text-dim); font-size: 12px; font-weight: 600; }
+  .grid-line { stroke: var(--border); stroke-width: 1; }
+  .node-dot { cursor: pointer; }
+  .node-label { fill: var(--text); font-size: 11px; font-weight: 600; pointer-events: none; }
+
+  /* Stakeholder list */
+  .stakeholder-card {
+    background: #11141d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .stakeholder-card .sh-header { display: flex; justify-content: space-between; align-items: center; }
+  .stakeholder-card .sh-name { font-weight: 600; }
+  .stakeholder-card .sh-role { color: var(--text-dim); font-size: 12px; }
+  .stakeholder-card .sh-meta { display: flex; gap: 10px; margin-top: 6px; font-size: 11px; color: var(--text-dim); }
+  .quadrant-tag {
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--q-color, var(--text-dim)) 18%, transparent);
+    color: var(--q-color, var(--text-dim));
+    font-weight: 600;
+  }
+  .sentiment-pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .sentiment-positive { background: rgba(74,222,128,0.15); color: var(--good); }
+  .sentiment-negative { background: rgba(248,113,113,0.15); color: var(--bad); }
+  .sentiment-neutral { background: rgba(154,160,180,0.15); color: var(--text-dim); }
+
+  /* Insights */
+  .insight {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #11141d;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--tier-color, var(--accent));
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .insight .insight-tag {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tier-color, var(--accent));
+    margin-bottom: 4px;
+    margin-right: 8px;
+    font-weight: 700;
+  }
+  .empty { color: var(--text-dim); font-size: 13px; padding: 8px 0; }
+
+  /* Insight legend */
+  .insight-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .insight-legend .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .insight-legend .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Quadrant legend */
+  .quadrant-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .quadrant-legend .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .quadrant-legend .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* History */
+  .log-entry {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .log-meta { color: var(--text-dim); font-size: 11px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .small-text { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .arrow-marker { fill: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>🧭 Stakeholder Map & Influence Tracker</h1>
+<div class="subtitle">Log plain notes from meetings and interviews. The agent builds your influence/impact grid and quietly surfaces who tends to move whom.</div>
+
+<div class="two-col">
+  <div class="section">
+    <h2>Add a stakeholder</h2>
+    <div class="form-row">
+      <label for="shName">Name</label>
+      <input type="text" id="shName" placeholder="e.g. Maria Chen">
+    </div>
+    <div class="form-row">
+      <label for="shRole">Role / relationship to the change</label>
+      <input type="text" id="shRole" placeholder="e.g. VP Operations, sponsor's peer">
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="shInfluence">Influence / Power <span class="slider-val" id="influenceVal">5</span></label>
+        <input type="range" id="shInfluence" min="0" max="10" value="5" oninput="document.getElementById('influenceVal').textContent=this.value">
+      </div>
+      <div class="form-row">
+        <label for="shImpact">Impact / Interest <span class="slider-val" id="impactVal">5</span></label>
+        <input type="range" id="shImpact" min="0" max="10" value="5" oninput="document.getElementById('impactVal').textContent=this.value">
+      </div>
+    </div>
+    <button onclick="addStakeholder()">Add to map</button>
+    <div class="small-text">Place them roughly where they sit today — the agent will suggest adjustments later as notes come in.</div>
+  </div>
+
+  <div class="section">
+    <h2>Stakeholder grid</h2>
+    <div class="grid-wrap">
+      <svg id="quadrantSvg" viewBox="0 0 320 320"></svg>
+    </div>
+    <div class="quadrant-legend">
+      <span class="key"><span class="dot" style="background:var(--q-manage)"></span>Manage Closely</span>
+      <span class="key"><span class="dot" style="background:var(--q-satisfy)"></span>Keep Satisfied</span>
+      <span class="key"><span class="dot" style="background:var(--q-inform)"></span>Keep Informed</span>
+      <span class="key"><span class="dot" style="background:var(--q-monitor)"></span>Monitor</span>
+    </div>
+    <div class="small-text">Ring color = priority quadrant. Fill color = most recent sentiment (green/red/gray).</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Log a note</h2>
+  <textarea id="noteInput" placeholder="e.g. 'Talked to Maria today — she's still skeptical about the new process. James met with her last week and she seemed more open after that conversation.'"></textarea>
+  <div class="row">
+    <button onclick="submitNote()">Analyze & Log</button>
+    <span class="small-text">Mention stakeholders by name — the agent detects who's involved, sentiment, and any signs of who's influencing whom.</span>
+  </div>
+  <div id="noteFeedback"></div>
+</div>
+
+<div class="two-col">
+  <div class="section">
+    <h2>Insights</h2>
+    <div class="insight-legend">
+      <span class="key"><span class="dot" style="background:var(--tier1)"></span>Day-to-day management</span>
+      <span class="key"><span class="dot" style="background:var(--tier2)"></span>Communication & feedback</span>
+      <span class="key"><span class="dot" style="background:var(--tier3)"></span>Relationships & structure</span>
+      <span class="key"><span class="dot" style="background:var(--tier4)"></span>Framing & mindset</span>
+    </div>
+    <div id="insightsList"></div>
+  </div>
+  <div class="section">
+    <h2>Influence network</h2>
+    <div class="grid-wrap">
+      <svg id="networkSvg" viewBox="0 0 320 320"></svg>
+    </div>
+    <div class="small-text">Arrows point from the person whose views seem to shift others, toward the person who shifted.</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Stakeholders</h2>
+  <div id="stakeholderList"></div>
+</div>
+
+<div class="section">
+  <h2>Recent notes</h2>
+  <div id="historyList"></div>
+</div>
+
+<div class="section">
+  <h2>Project data</h2>
+  <div class="row">
+    <button class="secondary" onclick="exportData()">Export project (JSON)</button>
+    <button class="secondary" onclick="document.getElementById('importFile').click()">Import project</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+    <button class="danger" onclick="resetData()">Reset / start new project</button>
+  </div>
+  <div class="small-text">Working with multiple clients? Export before starting a new project, and import to pick a previous one back up. Everything is stored locally in this browser only.</div>
+</div>
+
+<script>
+// ---------- Data model ----------
+const STORAGE_KEY = 'stakeholderTrackerData_v1';
+
+function loadData() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    const fresh = { stakeholders: [], notes: [], links: {} };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    return fresh;
+  }
+  return JSON.parse(raw);
+}
+function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+let state = loadData();
+
+// ---------- Sentiment lexicon (shared pattern with resolution tracker) ----------
+const POSITIVE_WORDS = ['great','good','positive','onboard','on board','open','excited','supportive','enthusiastic','engaged','agreed','aligned','improved','better','optimistic','encouraged','warmed up','came around','convinced','reassured','confident'];
+const NEGATIVE_WORDS = ['skeptical','resistant','frustrated','angry','worried','concerned','negative','pushback','opposed','disengaged','cynical','annoyed','upset','anxious','blocked','reluctant','doubtful','unhappy','distrust'];
+
+// ---------- Framing / ownership language ----------
+// Looks for whether someone talks about the change as being done TO their
+// group ("their problem", "not my job") vs WITH them ("we", "our team", "together").
+const EXTERNAL_FRAMING_PHRASES = ["not my job","not my problem","someone else's","someone else","above my pay grade","not our department","not our team","not up to us","that's on them","their problem","their job","they should","they need to","leadership's call","leadership's decision"];
+const OWNERSHIP_FRAMING_PHRASES = ["we should","we need","we can","our team","our responsibility","our job","together","let's","us to"];
+
+function analyzeFraming(text) {
+  const lower = text.toLowerCase();
+  let external = 0, ownership = 0;
+  for (const p of EXTERNAL_FRAMING_PHRASES) if (lower.includes(p)) external++;
+  for (const p of OWNERSHIP_FRAMING_PHRASES) if (lower.includes(p)) ownership++;
+  return { external, ownership };
+}
+
+function analyzeSentiment(text) {
+  const lower = text.toLowerCase();
+  let pos = 0, neg = 0;
+  for (const w of POSITIVE_WORDS) if (lower.includes(w)) pos++;
+  for (const w of NEGATIVE_WORDS) if (lower.includes(w)) neg++;
+  const score = pos - neg;
+  let label = 'neutral';
+  if (score > 0) label = 'positive';
+  else if (score < 0) label = 'negative';
+  return { label, score };
+}
+
+// ---------- Influence-phrase detection ----------
+// Templates describe a directional relationship: %A% (influencer) -> %B% (influenced)
+// "after X" is often phrased as "after talking/meeting with X" — allow that optional infix.
+const AFTER_A = `after(?: (?:talking|speaking|meeting) with)? %A%`;
+
+// Patterns where both people are referred to by name
+const NAME_NAME_PATTERNS = [
+  /after (?:talking|speaking|meeting) with %A%,?\s*%B%/i,
+  new RegExp(`%B% (?:changed|shifted) (?:his|her|their|its) (?:mind|view|position) ${AFTER_A}`, 'i'),
+  new RegExp(`%B% (?:seemed|seems|is|was) (?:more|less) (?:open|skeptical|convinced|on board|engaged) ${AFTER_A}`, 'i'),
+  /%A% (?:convinced|persuaded|swayed|reassured|won over) %B%/i,
+  /%B% (?:was|seems|seemed) (?:convinced|persuaded|swayed|reassured|won over) by %A%/i,
+  /%B% (?:listens to|trusts|defers to|follows) %A%/i,
+  new RegExp(`%B% (?:came around|warmed up|softened|agreed) ${AFTER_A}`, 'i')
+];
+
+// Patterns where the influenced person (%B%) is referred to with a pronoun
+// rather than by name (very common in real notes: "she came around after James")
+const PRONOUN = '(?:she|he|they|her|him|them)';
+const NAME_PRONOUN_PATTERNS = [
+  new RegExp(`after (?:talking|speaking|meeting) with %A%,?\\s*${PRONOUN}`, 'i'),
+  new RegExp(`${PRONOUN} (?:changed|shifted) (?:his|her|their|its) (?:mind|view|position) ${AFTER_A}`, 'i'),
+  new RegExp(`${PRONOUN} (?:seemed|seems|is|was) (?:more|less) (?:open|skeptical|convinced|on board|engaged) ${AFTER_A}`, 'i'),
+  new RegExp(`${PRONOUN} (?:was|seems|seemed) (?:convinced|persuaded|swayed|reassured|won over) by %A%`, 'i'),
+  new RegExp(`${PRONOUN} (?:came around|warmed up|softened|agreed) ${AFTER_A}`, 'i'),
+  new RegExp(`%A% (?:convinced|persuaded|swayed|reassured|won over) ${PRONOUN}`, 'i')
+];
+
+function findMentions(text) {
+  return state.stakeholders.filter(s => {
+    const full = s.name.toLowerCase();
+    const first = full.split(/\s+/)[0];
+    const re = new RegExp(`\\b(?:${escapeRegex(full)}|${escapeRegex(first)})\\b`, 'i');
+    return re.test(text);
+  });
+}
+
+function nameAlternatives(s) {
+  const full = escapeRegex(s.name);
+  const first = escapeRegex(s.name.split(/\s+/)[0]);
+  return first === full ? full : `(?:${full}|${first})`;
+}
+
+function detectInfluenceLinks(text, mentioned) {
+  const links = [];
+  const seen = new Set();
+  for (const a of mentioned) {
+    // Name-name patterns: explicit influencer (a) and influenced (b)
+    for (const b of mentioned) {
+      if (a.id === b.id) continue;
+      for (const pattern of NAME_NAME_PATTERNS) {
+        const re = new RegExp(
+          pattern.source
+            .replace('%A%', nameAlternatives(a))
+            .replace('%B%', nameAlternatives(b)),
+          pattern.flags
+        );
+        if (re.test(text)) {
+          const key = a.id + '->' + b.id;
+          if (!seen.has(key)) { links.push({ from: a.id, to: b.id }); seen.add(key); }
+          break;
+        }
+      }
+    }
+    // Name-pronoun patterns: influencer (a) named, influenced referred to by pronoun.
+    // The pronoun is assumed to refer to the other mentioned stakeholder(s).
+    for (const pattern of NAME_PRONOUN_PATTERNS) {
+      const re = new RegExp(pattern.source.replace('%A%', nameAlternatives(a)), pattern.flags);
+      if (re.test(text)) {
+        for (const b of mentioned) {
+          if (b.id === a.id) continue;
+          const key = a.id + '->' + b.id;
+          if (!seen.has(key)) { links.push({ from: a.id, to: b.id }); seen.add(key); }
+        }
+        break;
+      }
+    }
+  }
+  return links;
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ---------- Stakeholder actions ----------
+function addStakeholder() {
+  const name = document.getElementById('shName').value.trim();
+  const role = document.getElementById('shRole').value.trim();
+  const influence = parseInt(document.getElementById('shInfluence').value, 10);
+  const impact = parseInt(document.getElementById('shImpact').value, 10);
+  if (!name) return;
+  state.stakeholders.push({
+    id: 'sh_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    name, role, influence, impact,
+    sentimentHistory: [],
+    mentionCount: 0,
+    framingExternal: 0,
+    framingOwnership: 0
+  });
+  saveData();
+  document.getElementById('shName').value = '';
+  document.getElementById('shRole').value = '';
+  document.getElementById('shInfluence').value = 5;
+  document.getElementById('shImpact').value = 5;
+  document.getElementById('influenceVal').textContent = '5';
+  document.getElementById('impactVal').textContent = '5';
+  render();
+}
+
+function removeStakeholder(id) {
+  if (!confirm('Remove this stakeholder from the map? Their notes will remain in history but links to them will be cleared.')) return;
+  state.stakeholders = state.stakeholders.filter(s => s.id !== id);
+  for (const key of Object.keys(state.links)) {
+    const [from, to] = key.split('->');
+    if (from === id || to === id) delete state.links[key];
+  }
+  saveData();
+  render();
+}
+
+// ---------- Note actions ----------
+function submitNote() {
+  const input = document.getElementById('noteInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const mentioned = findMentions(text);
+  const sentiment = analyzeSentiment(text);
+  const framing = analyzeFraming(text);
+
+  // Update sentiment history per mentioned stakeholder
+  for (const s of mentioned) {
+    s.sentimentHistory.push({ date: new Date().toISOString(), score: sentiment.score, label: sentiment.label });
+    s.mentionCount = (s.mentionCount || 0) + 1;
+    s.framingExternal = (s.framingExternal || 0) + framing.external;
+    s.framingOwnership = (s.framingOwnership || 0) + framing.ownership;
+  }
+
+  // Detect influence links
+  const newLinks = detectInfluenceLinks(text, mentioned);
+  for (const link of newLinks) {
+    const key = link.from + '->' + link.to;
+    if (!state.links[key]) state.links[key] = { from: link.from, to: link.to, count: 0 };
+    state.links[key].count++;
+  }
+
+  const noteEntry = {
+    id: 'note_' + Date.now(),
+    date: new Date().toISOString(),
+    text,
+    mentions: mentioned.map(s => s.id),
+    sentiment: sentiment.label,
+    linksDetected: newLinks.length
+  };
+  state.notes.unshift(noteEntry);
+  saveData();
+
+  // Feedback
+  const fb = document.getElementById('noteFeedback');
+  const parts = [];
+  if (mentioned.length === 0) {
+    parts.push(`<div class="insight"><span class="insight-tag">No matches</span>Logged, but no known stakeholders were recognized in this note. Add them above if they should be tracked.</div>`);
+  } else {
+    parts.push(`<div class="insight"><span class="insight-tag">Logged</span>Recognized: ${mentioned.map(s => s.name).join(', ')} · sentiment read as <span class="sentiment-pill sentiment-${sentiment.label}">${sentiment.label}</span></div>`);
+  }
+  if (newLinks.length > 0) {
+    for (const l of newLinks) {
+      const a = state.stakeholders.find(s => s.id === l.from);
+      const b = state.stakeholders.find(s => s.id === l.to);
+      parts.push(`<div class="insight"><span class="insight-tag">Influence signal</span>This note suggests <b>${a.name}</b>'s perspective may have shaped <b>${b.name}</b>'s view.</div>`);
+    }
+  }
+  fb.innerHTML = parts.join('');
+
+  input.value = '';
+  render();
+}
+
+// ---------- Insight leverage tiers ----------
+// Plain-language framing of a Meadows-style "how deep does this intervention go" scale.
+// Tier 1 = surface/day-to-day, Tier 4 = deepest (goals & framing).
+const LEVERAGE_TIERS = {
+  1: { color: 'var(--tier1)', label: 'Day-to-day management' },
+  2: { color: 'var(--tier2)', label: 'Communication & feedback' },
+  3: { color: 'var(--tier3)', label: 'Relationships & structure' },
+  4: { color: 'var(--tier4)', label: 'Framing & mindset' }
+};
+
+function mkInsight(tier, tag, html) {
+  const color = LEVERAGE_TIERS[tier].color;
+  return `<div class="insight" style="--tier-color:${color}"><span class="insight-tag">${tag}</span>${html}</div>`;
+}
+
+// ---------- Insights generation ----------
+function generateInsights() {
+  const insights = [];
+  if (state.stakeholders.length === 0) {
+    return [`<div class="empty">Add a few stakeholders and log some notes to start seeing insights here.</div>`];
+  }
+
+  // 1. Quadrant-based standard guidance for top "Manage Closely" stakeholders
+  // Tier 1 — this is routine stakeholder management, the most familiar/surface-level lever.
+  const manageClosely = state.stakeholders.filter(s => s.influence >= 5.5 && s.impact >= 5.5);
+  if (manageClosely.length > 0) {
+    insights.push(mkInsight(1, 'Priority', `${manageClosely.map(s => s.name).join(', ')} sit in "Manage Closely" — keep them closely engaged throughout.`));
+  }
+
+  // 2. Outgoing influence totals — who shows up as an influencer most often
+  // Tier 3 — this is about the informal structure of relationships, not any one person's role.
+  const outgoing = {};
+  for (const key of Object.keys(state.links)) {
+    const link = state.links[key];
+    outgoing[link.from] = (outgoing[link.from] || 0) + link.count;
+  }
+  const ranked = Object.entries(outgoing).sort((a,b) => b[1] - a[1]);
+  if (ranked.length > 0) {
+    const top = state.stakeholders.find(s => s.id === ranked[0][0]);
+    if (top) {
+      const distinctTargets = new Set(Object.values(state.links).filter(l => l.from === top.id).map(l => l.to)).size;
+      const totalCount = ranked[0][1];
+      const phrasing = totalCount >= 2
+        ? `keeps showing up as someone whose views shift others`
+        : `shows an early signal of shifting others' views`;
+      insights.push(mkInsight(3, 'Hidden leverage', `<b>${top.name}</b> ${phrasing} (${distinctTargets} other stakeholder${distinctTargets===1?'':'s'} so far). Engaging ${top.name} early may have ripple effects across the group — even if their formal influence score doesn't look like the highest.`));
+
+      // Check if this person's formal influence score is lower than their network role suggests
+      if (top.influence < 7) {
+        insights.push(mkInsight(3, 'Worth reconsidering', `${top.name} is currently scored ${top.influence}/10 on formal influence, but the notes suggest their actual sway over peers may be higher. Consider moving them up on the grid.`));
+      }
+    }
+  }
+
+  // 3. Sentiment trend detection — declining/improving sentiment over last 3 mentions
+  // Tier 2 — catching a trend early is fundamentally about feedback/information flow.
+  for (const s of state.stakeholders) {
+    if (s.sentimentHistory.length >= 3) {
+      const last3 = s.sentimentHistory.slice(-3);
+      const scores = last3.map(h => h.score);
+      const declining = scores[0] > scores[1] && scores[1] >= scores[2] && scores[2] < 0;
+      const improving = scores[0] < scores[1] && scores[1] <= scores[2] && scores[2] > 0;
+      if (declining) {
+        insights.push(mkInsight(2, 'Early warning', `<b>${s.name}</b>'s tone has been trending more negative across recent notes. Worth checking in before this hardens into resistance.`));
+      } else if (improving) {
+        insights.push(mkInsight(2, 'Momentum', `<b>${s.name}</b>'s tone has been trending more positive — a good moment to ask them to advocate to peers.`));
+      }
+    }
+  }
+
+  // 4. Stakeholders with high impact but low influence and negative sentiment — quiet risk
+  // Tier 2 — the risk is that information about their concerns isn't reaching anyone yet.
+  for (const s of state.stakeholders) {
+    const lastSentiment = s.sentimentHistory.length ? s.sentimentHistory[s.sentimentHistory.length - 1].label : null;
+    if (s.impact >= 6 && s.influence < 5 && lastSentiment === 'negative') {
+      insights.push(mkInsight(2, 'Quiet risk', `<b>${s.name}</b> is highly affected by this change but has limited formal influence — easy to overlook, but unresolved frustration here can surface later through informal channels.`));
+    }
+  }
+
+  // 5. No notes yet for someone on the grid
+  // Tier 2 — a gap in your information flow about the system, not a property of the person.
+  const noNotes = state.stakeholders.filter(s => (s.mentionCount || 0) === 0);
+  if (noNotes.length > 0 && state.notes.length > 0) {
+    insights.push(mkInsight(2, 'Gap', `No notes logged yet for: ${noNotes.map(s => s.name).join(', ')}. Worth checking in so the map reflects current thinking, not just initial placement.`));
+  }
+
+  // 6. Framing/ownership language — Tier 4, the deepest lever: how someone frames
+  // the change ("our problem" vs "their problem") shapes everything downstream.
+  for (const s of state.stakeholders) {
+    const ext = s.framingExternal || 0;
+    const own = s.framingOwnership || 0;
+    if (ext >= 1 && ext > own) {
+      insights.push(mkInsight(4, 'Reframe opportunity', `<b>${s.name}</b>'s comments suggest they're framing this as something being done <i>to</i> their group rather than <i>with</i> them. How this is discussed with them — not just what's communicated — may matter more than additional information or training.`));
+    }
+  }
+
+  if (insights.length === 0) {
+    insights.push(`<div class="empty">Log a few more notes — patterns will appear here as they emerge.</div>`);
+  }
+  return insights;
+}
+
+// ---------- Rendering ----------
+function quadrantLabel(s) {
+  if (s.influence >= 5.5 && s.impact >= 5.5) return 'Manage Closely';
+  if (s.influence >= 5.5 && s.impact < 5.5) return 'Keep Satisfied';
+  if (s.influence < 5.5 && s.impact >= 5.5) return 'Keep Informed';
+  return 'Monitor';
+}
+
+function quadrantColor(s) {
+  if (s.influence >= 5.5 && s.impact >= 5.5) return 'var(--q-manage)';
+  if (s.influence >= 5.5 && s.impact < 5.5) return 'var(--q-satisfy)';
+  if (s.influence < 5.5 && s.impact >= 5.5) return 'var(--q-inform)';
+  return 'var(--q-monitor)';
+}
+
+function sentimentColor(s) {
+  const lastSentiment = s.sentimentHistory.length ? s.sentimentHistory[s.sentimentHistory.length - 1].label : 'neutral';
+  if (lastSentiment === 'positive') return 'var(--good)';
+  if (lastSentiment === 'negative') return 'var(--bad)';
+  return 'var(--text-dim)';
+}
+
+function render() {
+  renderQuadrant();
+  renderNetwork();
+  renderStakeholderList();
+  renderInsights();
+  renderHistory();
+}
+
+function renderQuadrant() {
+  const svg = document.getElementById('quadrantSvg');
+  const size = 320, pad = 30, plot = size - pad * 2, half = plot / 2;
+  let html = '';
+  // quadrant background tints
+  html += `<rect x="${pad+half}" y="${pad}" width="${half}" height="${half}" fill="var(--q-manage)" opacity="0.08" />`;       // Manage Closely (top-right)
+  html += `<rect x="${pad}" y="${pad}" width="${half}" height="${half}" fill="var(--q-satisfy)" opacity="0.08" />`;            // Keep Satisfied (top-left)
+  html += `<rect x="${pad+half}" y="${pad+half}" width="${half}" height="${half}" fill="var(--q-inform)" opacity="0.08" />`;   // Keep Informed (bottom-right)
+  html += `<rect x="${pad}" y="${pad+half}" width="${half}" height="${half}" fill="var(--q-monitor)" opacity="0.08" />`;       // Monitor (bottom-left)
+  // grid lines (quadrant dividers)
+  html += `<line class="grid-line" x1="${pad}" y1="${pad + plot/2}" x2="${size-pad}" y2="${pad + plot/2}" />`;
+  html += `<line class="grid-line" x1="${pad + plot/2}" y1="${pad}" x2="${pad + plot/2}" y2="${size-pad}" />`;
+  // border
+  html += `<rect x="${pad}" y="${pad}" width="${plot}" height="${plot}" fill="none" stroke="var(--border)" />`;
+  // axis labels
+  html += `<text class="axis-label" x="${size/2}" y="${size-6}" text-anchor="middle">Impact / Interest →</text>`;
+  html += `<text class="axis-label" x="12" y="${size/2}" text-anchor="middle" transform="rotate(-90 12 ${size/2})">Influence / Power →</text>`;
+  // quadrant labels
+  html += `<text class="quadrant-label" x="${pad+plot-4}" y="${pad+14}" text-anchor="end" fill="var(--q-manage)">Manage Closely</text>`;
+  html += `<text class="quadrant-label" x="${pad+4}" y="${pad+14}" text-anchor="start" fill="var(--q-satisfy)">Keep Satisfied</text>`;
+  html += `<text class="quadrant-label" x="${pad+plot-4}" y="${size-pad-6}" text-anchor="end" fill="var(--q-inform)">Keep Informed</text>`;
+  html += `<text class="quadrant-label" x="${pad+4}" y="${size-pad-6}" text-anchor="start" fill="var(--q-monitor)">Monitor</text>`;
+
+  for (const s of state.stakeholders) {
+    const x = pad + (s.impact / 10) * plot;
+    const y = pad + plot - (s.influence / 10) * plot;
+    html += `<circle class="node-dot" cx="${x}" cy="${y}" r="7" fill="${sentimentColor(s)}" stroke="${quadrantColor(s)}" stroke-width="2.5" />`;
+    html += `<text class="node-label" x="${x+10}" y="${y+4}">${escapeHtmlSvg(s.name)}</text>`;
+  }
+  svg.innerHTML = html;
+}
+
+function renderNetwork() {
+  const svg = document.getElementById('networkSvg');
+  const size = 320, cx = size/2, cy = size/2, r = 110;
+  const n = state.stakeholders.length;
+  let html = `<defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" class="arrow-marker" />
+    </marker>
+  </defs>`;
+
+  if (n === 0) {
+    svg.innerHTML = '';
+    return;
+  }
+
+  const positions = {};
+  state.stakeholders.forEach((s, i) => {
+    const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+    positions[s.id] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  });
+
+  // links
+  for (const key of Object.keys(state.links)) {
+    const link = state.links[key];
+    const from = positions[link.from], to = positions[link.to];
+    if (!from || !to) continue;
+    // shorten line so it doesn't overlap the node circle
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+    const ux = dx/dist, uy = dy/dist;
+    const x1 = from.x + ux*12, y1 = from.y + uy*12;
+    const x2 = to.x - ux*14, y2 = to.y - uy*14;
+    const strokeWidth = Math.min(1 + link.count, 5);
+    html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--accent)" stroke-width="${strokeWidth}" opacity="0.6" marker-end="url(#arrow)" />`;
+  }
+
+  // nodes
+  for (const s of state.stakeholders) {
+    const p = positions[s.id];
+    const radius = 7 + (s.influence / 10) * 7;
+    html += `<circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="${sentimentColor(s)}" stroke="${quadrantColor(s)}" stroke-width="2.5" />`;
+    // place label radially outward from center so it doesn't overlap connecting lines/arrows
+    const ldx = p.x - cx, ldy = p.y - cy;
+    const ldist = Math.sqrt(ldx*ldx + ldy*ldy) || 1;
+    const lux = ldx/ldist, luy = ldy/ldist;
+    const labelOffset = radius + 14;
+    const lx = p.x + lux * labelOffset, ly = p.y + luy * labelOffset;
+    const anchor = lux > 0.3 ? 'start' : lux < -0.3 ? 'end' : 'middle';
+    html += `<text class="node-label" x="${lx}" y="${ly + 4}" text-anchor="${anchor}">${escapeHtmlSvg(s.name)}</text>`;
+  }
+
+  svg.innerHTML = html;
+}
+
+function escapeHtmlSvg(str) {
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderStakeholderList() {
+  const el = document.getElementById('stakeholderList');
+  if (state.stakeholders.length === 0) {
+    el.innerHTML = '<div class="empty">No stakeholders added yet.</div>';
+    return;
+  }
+  el.innerHTML = state.stakeholders.map(s => {
+    const lastSentiment = s.sentimentHistory.length ? s.sentimentHistory[s.sentimentHistory.length - 1].label : 'neutral';
+    return `
+    <div class="stakeholder-card">
+      <div class="sh-header">
+        <div>
+          <span class="sh-name">${escapeHtmlSvg(s.name)}</span>
+          ${s.role ? `<span class="sh-role"> — ${escapeHtmlSvg(s.role)}</span>` : ''}
+        </div>
+        <button class="danger" style="padding:4px 10px; font-size:11px;" onclick="removeStakeholder('${s.id}')">Remove</button>
+      </div>
+      <div class="sh-meta">
+        <span class="quadrant-tag" style="--q-color:${quadrantColor(s)}">${quadrantLabel(s)}</span>
+        <span>Influence ${s.influence}/10 · Impact ${s.impact}/10</span>
+        <span>${s.mentionCount || 0} note${(s.mentionCount||0)===1?'':'s'}</span>
+        <span class="sentiment-pill sentiment-${lastSentiment}">${lastSentiment}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderInsights() {
+  document.getElementById('insightsList').innerHTML = generateInsights().join('');
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  if (state.notes.length === 0) {
+    el.innerHTML = '<div class="empty">No notes logged yet.</div>';
+    return;
+  }
+  el.innerHTML = state.notes.slice(0, 20).map(n => {
+    const names = n.mentions.map(id => {
+      const s = state.stakeholders.find(s => s.id === id);
+      return s ? s.name : null;
+    }).filter(Boolean);
+    return `
+    <div class="log-entry">
+      <div>${escapeHtmlSvg(n.text)}</div>
+      <div class="log-meta">
+        <span>${names.length ? names.join(', ') : 'no stakeholders recognized'}</span>
+        <span class="sentiment-pill sentiment-${n.sentiment}">${n.sentiment}</span>
+        ${n.linksDetected ? `<span>${n.linksDetected} influence signal${n.linksDetected===1?'':'s'} detected</span>` : ''}
+        <span>${new Date(n.date).toLocaleString()}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---------- Project data actions ----------
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'stakeholder-map-export.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.stakeholders || !data.notes || !data.links) throw new Error('Invalid file format');
+      state = data;
+      saveData();
+      render();
+    } catch (err) {
+      const fb = document.getElementById('noteFeedback');
+      fb.innerHTML = `<div class="insight"><span class="insight-tag">Import failed</span>${err.message}</div>`;
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetData() {
+  if (!confirm('Start a new project? This clears the current stakeholder map and notes from this browser. Export first if you want to keep it.')) return;
+  state = { stakeholders: [], notes: [], links: {} };
+  saveData();
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
